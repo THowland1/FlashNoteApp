@@ -118,13 +118,17 @@ export default class NotifService {
     });
   }
 
-  scheduleNotif(soundName?: SoundName) {
+  scheduleNotif(
+    notif: Partial<
+      Parameters<typeof PushNotification.localNotificationSchedule>[0]
+    > = {},
+  ) {
     this.lastId++;
     PushNotification.localNotificationSchedule({
       date: new Date(Date.now() + 30 * 1000), // in 30 secs
 
       /* Android Only Properties */
-      channelId: soundName ? 'sound-channel-id' : 'default-channel-id',
+      //   channelId: soundName ? 'sound-channel-id' : 'default-channel-id',
       ticker: 'My Notification Ticker', // (optional)
       autoCancel: true, // (optional) default: true
       largeIcon: 'ic_launcher', // (optional) default: "ic_launcher"
@@ -154,9 +158,11 @@ export default class NotifService {
       title: 'Scheduled Notification', // (optional)
       message: 'My Notification Message', // (required)
       userInfo: {sceen: 'home'}, // (optional) default: {} (using null throws a JSON value '<null>' error)
-      playSound: !!soundName, // (optional) default: true
-      soundName: soundName ? soundName : 'default', // (optional) Sound to play when the notification is shown. Value of 'default' plays the default sound. It can be set to a custom sound such as 'android.resource://com.xyz/raw/my_sound'. It will look for the 'my_sound' audio file in 'res/raw' directory and play it. default: 'default' (default sound is played)
+      //   playSound: !!soundName, // (optional) default: true
+      //   soundName: soundName ? soundName : 'default', // (optional) Sound to play when the notification is shown. Value of 'default' plays the default sound. It can be set to a custom sound such as 'android.resource://com.xyz/raw/my_sound'. It will look for the 'my_sound' audio file in 'res/raw' directory and play it. default: 'default' (default sound is played)
       number: 10, // (optional) Valid 32 bit integer specified as string. default: none (Cannot be zero)
+
+      ...notif,
     });
   }
 
