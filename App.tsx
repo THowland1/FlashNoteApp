@@ -40,6 +40,10 @@ import {STATE_CAPITALS} from './src/state-capitals';
 
 import * as I from 'react-native-feather';
 
+if (__DEV__) {
+  import('./ReactotronConfig').then(() => console.log('Reactotron Configured'));
+}
+
 const MAX_SCHEDULED_NOTIFICATION_COUNT = 64;
 
 type Option = {albumName: string; items: string[]};

@@ -32,14 +32,19 @@ const PreferencesContextProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useState<Preferences | null>(null);
 
   useEffect(() => {
-    AsyncStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+    console.log('preferences starting up');
+    if (preferences) {
+      AsyncStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+    }
   }, [preferences]);
 
   useEffect(() => {
+    console.log('starting up');
     AsyncStorage.getItem(PREFERENCES_KEY).then(value => {
+      console.log(value);
       if (value) {
         setPreferences(JSON.parse(value));
       }
@@ -48,14 +53,18 @@ const PreferencesContextProvider = ({
 
   function patchPreferences(newPreferences: Partial<Preferences>) {
     setPreferences({
-      ...preferences,
+      ...(preferences || DEFAULT_PREFERENCES),
       ...newPreferences,
     });
   }
 
   return (
     <PreferencesContext.Provider
-      value={{preferences, setPreferences, patchPreferences}}>
+      value={{
+        preferences: preferences || DEFAULT_PREFERENCES,
+        setPreferences,
+        patchPreferences,
+      }}>
       {children}
     </PreferencesContext.Provider>
   );
