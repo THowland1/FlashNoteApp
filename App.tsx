@@ -8,7 +8,7 @@
  * @format
  */
 
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -22,6 +22,8 @@ import {
   View,
 } from 'react-native';
 
+import ActionSheet from 'react-native-actionsheet';
+
 import {
   Colors,
   DebugInstructions,
@@ -30,7 +32,22 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 import NotifService from './src/NotifService';
+import {
+  PreferencesContextProvider,
+  usePreferencesContext,
+} from './src/preferencesContext';
 import {STATE_CAPITALS} from './src/state-capitals';
+
+import * as I from 'react-native-feather';
+
+/**
+ *
+ * Theme
+ * Dark: #151D3B
+ * Bold red: #D82148
+ * Pale green action: #6EBF8B
+ * Sandy: #DADBBD
+ */
 
 const Section: React.FC<{
   title: string;
@@ -56,9 +73,13 @@ const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
   const [state, setState] = useState({} as any);
   const [remaining, setRemaining] = useState(0);
+  const {preferences, patchPreferences} = usePreferencesContext();
+  const actionSheetRef = useRef<ActionSheet | null>(null);
 
   const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    // backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    backgroundColor: '#151D3B',
+    color: '#F5F5F5',
   };
 
   function onRegister(token: {token: string}) {
@@ -93,9 +114,69 @@ const App = () => {
         style={backgroundStyle}>
         <Header />
         <View style={styles.container}>
-          <Text style={styles.title}>
-            Example app react-native-push-notification
-          </Text>
+          <View>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={async () => {
+                patchPreferences({
+                  shuffle: !preferences.shuffle,
+                });
+              }}>
+              <I.Shuffle
+                color={preferences.shuffle ? '#6EBF8B' : '#ffffff'}
+                strokeWidth={preferences.shuffle ? 3 : 2}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={async () => {
+                actionSheetRef.current?.show();
+              }}>
+              <Text style={styles.iconButtonText}>
+                {' '}
+                /{preferences.intervalInSeconds}
+              </Text>
+            </TouchableOpacity>
+            <ActionSheet
+              ref={actionSheetRef}
+              title={'Which often do you want to see a new notification?'}
+              options={[
+                'Cancel',
+                'Every 30 seconds',
+                'Every minute',
+                'Every 5 minutes',
+                'Every 10 minutes',
+                'Every 30 minutes',
+                'Every hour',
+              ]}
+              cancelButtonIndex={0}
+              onPress={index => {
+                patchPreferences({
+                  intervalInSeconds: [
+                    30,
+                    30,
+                    60,
+                    5 * 60,
+                    10 * 60,
+                    30 * 60,
+                    60 * 60,
+                  ][index],
+                });
+              }}
+            />
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={async () => {
+                patchPreferences({
+                  repeat: !preferences.repeat,
+                });
+              }}>
+              <I.Repeat
+                color={preferences.repeat ? '#6EBF8B' : '#ffffff'}
+                strokeWidth={preferences.repeat ? 3 : 2}
+              />
+            </TouchableOpacity>
+          </View>
           <View style={styles.spacer} />
           <TextInput
             style={styles.textField}
@@ -104,6 +185,17 @@ const App = () => {
           />
           <View style={styles.spacer} />
 
+          <TouchableOpacity
+            style={styles.button}
+            onPress={async () => {
+              patchPreferences({
+                intervalInSeconds: 300 * Math.random(),
+                repeat: Math.random() < 0.5,
+                shuffle: Math.random() < 0.5,
+              });
+            }}>
+            <Text style={styles.buttonText}>Change preference</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.button}
             onPress={async () => {
@@ -280,6 +372,16 @@ const styles = StyleSheet.create({
   highlight: {
     fontWeight: '700',
   },
+  iconButton: {
+    margin: 5,
+    padding: 10,
+  },
+  iconButtonText: {
+    margin: 5,
+    padding: 10,
+    color: '#fff',
+    fontWeight: '700',
+  },
   button: {
     margin: 5,
     padding: 10,
@@ -296,7 +398,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5FCFF',
+    backgroundColor: '#151D3B',
   },
   welcome: {
     fontSize: 20,
@@ -317,7 +419,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 20,
     textAlign: 'center',
+    color: '#F5F5F5',
   },
 });
 
-export default App;
+export default () => (
+  <PreferencesContextProvider>
+    <App />
+  </PreferencesContextProvider>
+);
