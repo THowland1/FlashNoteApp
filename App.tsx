@@ -40,6 +40,22 @@ import {STATE_CAPITALS} from './src/state-capitals';
 
 import * as I from 'react-native-feather';
 
+const MAX_SCHEDULED_NOTIFICATION_COUNT = 64;
+
+type Option = {albumName: string; items: string[]};
+const OPTIONS: Option[] = [
+  {albumName: 'US State Capitals', items: STATE_CAPITALS},
+  {
+    albumName: 'Double Nobel Prize Winners',
+    items: [
+      'Marie Curie: Physics in 1903; Chemistry in 1906',
+      'Linus Pauling: Chemistry in 1954; Peace in 1962',
+      'John Bardeen: Physics in 1956 and 1972',
+      'Frederick Sanger: Chemistry in 1958 and 1980',
+    ],
+  },
+];
+
 /**
  *
  * Theme
@@ -55,15 +71,7 @@ const Section: React.FC<{
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
       {children}
     </View>
   );
@@ -96,13 +104,37 @@ const App = () => {
 
   const notif = new NotifService(onRegister, onNotif);
 
-  async function scheduleLoadsInOneGo() {
+  async function scheduleLoadsInOneGo(albumName: string, items: string[]) {
+    notif.cancelAll();
+
     const date = new Date();
+    console.log(date);
+    let dataToPlay = [...items];
 
-    STATE_CAPITALS.forEach(item => {
-      date.setTime(date.getTime() + 1000 * 10);
+    if (preferences.shuffle) {
+      shuffleArray(dataToPlay);
+    }
 
-      notif.scheduleNotif({title: 'State capitals', date, message: item});
+    if (preferences.repeat) {
+      while (
+        dataToPlay.length === 0 ||
+        dataToPlay.length < MAX_SCHEDULED_NOTIFICATION_COUNT
+      ) {
+        dataToPlay.push(...dataToPlay);
+      }
+    }
+
+    dataToPlay.forEach(item => {
+      date.setTime(date.getTime() + 1000 * preferences.intervalInSeconds);
+      console.log(date);
+      notif.scheduleNotif({title: albumName, date, message: item});
+    });
+
+    date.setTime(date.getTime() + 1000 * 1);
+    notif.scheduleNotif({
+      title: albumName,
+      date,
+      message: 'You have reached the end',
     });
   }
 
@@ -142,6 +174,8 @@ const App = () => {
               title={'Which often do you want to see a new notification?'}
               options={[
                 'Cancel',
+                'Every 5 seconds',
+                'Every 10 seconds',
                 'Every 30 seconds',
                 'Every minute',
                 'Every 5 minutes',
@@ -154,6 +188,8 @@ const App = () => {
                 patchPreferences({
                   intervalInSeconds: [
                     30,
+                    5,
+                    10,
                     30,
                     60,
                     5 * 60,
@@ -185,6 +221,18 @@ const App = () => {
           />
           <View style={styles.spacer} />
 
+          {OPTIONS.map(({albumName, items}, i) => (
+            <Section title={albumName} key={i}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={async () => {
+                  await scheduleLoadsInOneGo(albumName, items);
+                }}>
+                <Text style={styles.buttonText}>Play</Text>
+              </TouchableOpacity>
+            </Section>
+          ))}
+
           <TouchableOpacity
             style={styles.button}
             onPress={async () => {
@@ -196,13 +244,7 @@ const App = () => {
             }}>
             <Text style={styles.buttonText}>Change preference</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={async () => {
-              await scheduleLoadsInOneGo();
-            }}>
-            <Text style={styles.buttonText}>Loads in one go</Text>
-          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.button}
             onPress={() => {
@@ -319,16 +361,6 @@ const App = () => {
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
-          <Section title="State capitals">
-            <TouchableOpacity
-              style={styles.button}
-              onPress={async () => {
-                await scheduleLoadsInOneGo();
-              }}>
-              <Text style={styles.buttonText}>Loads in one go</Text>
-            </TouchableOpacity>
-            <Text style={styles.buttonText}>Loads in one go {remaining}</Text>
-          </Section>
           <Section title="Step One">
             <Text>
               Edit <Text style={styles.highlight}>App.tsx</Text> to change this
@@ -359,10 +391,12 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginTop: 32,
     paddingHorizontal: 24,
+    width: '100%',
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   sectionDescription: {
     marginTop: 8,
@@ -428,3 +462,12 @@ export default () => (
     <App />
   </PreferencesContextProvider>
 );
+
+function shuffleArray<T extends any[]>(array: T) {
+  for (var i = array.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+}
