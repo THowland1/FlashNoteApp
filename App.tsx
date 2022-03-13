@@ -8,7 +8,7 @@
  * @format
  */
 
-import React, {useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -39,6 +39,19 @@ import {
 import {STATE_CAPITALS} from './src/state-capitals';
 
 import * as I from 'react-native-feather';
+import {
+  Queue,
+  QueueContextProvider,
+  QueueItem,
+  useQueueContext,
+} from './src/queueContext';
+
+import Reactotron from 'reactotron-react-native';
+import {PushNotificationScheduledLocalObject} from 'react-native-push-notification';
+
+import {QueryClient, QueryClientProvider, useQuery} from 'react-query';
+
+const queryClient = new QueryClient();
 
 if (__DEV__) {
   import('./ReactotronConfig').then(() => console.log('Reactotron Configured'));
@@ -63,6 +76,7 @@ const OPTIONS: Option[] = [
 /**
  *
  * Theme
+ * Darker: #0a1436
  * Dark: #151D3B
  * Bold red: #D82148
  * Pale green action: #6EBF8B
@@ -84,8 +98,19 @@ const Section: React.FC<{
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
   const [state, setState] = useState({} as any);
-  const [remaining, setRemaining] = useState(0);
+  const {data: scheduledNotif} = useQuery(
+    'ScheduledNotifications',
+    async () => {
+      console.log('Getting');
+      const result = await notif.getScheduledLocalNotificationsAsync();
+      console.log('Got');
+      console.log(result);
+      return result;
+    },
+    {refetchInterval: 2000},
+  );
   const {preferences, patchPreferences} = usePreferencesContext();
+  const {queue, setQueue} = useQueueContext();
   const actionSheetRef = useRef<ActionSheet | null>(null);
 
   const backgroundStyle = {
@@ -99,6 +124,7 @@ const App = () => {
   }
 
   function onNotif(notif: any) {
+    console.log(notif);
     Alert.alert(notif.title, notif.message);
   }
 
@@ -108,34 +134,60 @@ const App = () => {
 
   const notif = new NotifService(onRegister, onNotif);
 
+  function updateQueue(albumName: string, items: string[]) {
+    const unshuffled: QueueItem[] = items.map((item, i) => ({
+      id: i,
+      albumName,
+      noteText: item,
+    }));
+
+    let shuffled = [...unshuffled];
+
+    if (preferences.shuffle) {
+      shuffleArray(shuffled);
+    }
+
+    const newQueue: Queue = {
+      shuffled,
+      unshuffled,
+    };
+
+    setQueue(newQueue);
+    return newQueue;
+  }
   async function scheduleLoadsInOneGo(albumName: string, items: string[]) {
     notif.cancelAll();
 
-    const date = new Date();
-    console.log(date);
-    let dataToPlay = [...items];
+    const newQueue = updateQueue(albumName, items);
 
-    if (preferences.shuffle) {
-      shuffleArray(dataToPlay);
-    }
+    const date = new Date();
+
+    let playingNext = [...newQueue.shuffled];
+
+    // One for the meta "You have reached the end" notification
+    const maxCount = MAX_SCHEDULED_NOTIFICATION_COUNT - 1;
 
     if (preferences.repeat) {
-      while (
-        dataToPlay.length === 0 ||
-        dataToPlay.length < MAX_SCHEDULED_NOTIFICATION_COUNT
-      ) {
-        dataToPlay.push(...dataToPlay);
+      while (playingNext.length === 0 || playingNext.length < maxCount) {
+        playingNext.push(...playingNext);
       }
     }
+    playingNext = playingNext.slice(0, maxCount);
 
-    dataToPlay.forEach(item => {
+    playingNext.forEach(item => {
       date.setTime(date.getTime() + 1000 * preferences.intervalInSeconds);
       console.log(date);
-      notif.scheduleNotif({title: albumName, date, message: item});
+      notif.scheduleNotif({
+        id: item.id,
+        title: item.albumName,
+        date,
+        message: item.noteText,
+      });
     });
 
     date.setTime(date.getTime() + 1000 * 1);
     notif.scheduleNotif({
+      id: 999,
       title: albumName,
       date,
       message: 'You have reached the end',
@@ -145,12 +197,46 @@ const App = () => {
   return (
     <SafeAreaView style={backgroundStyle}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 50,
+          left: 10,
+          right: 10,
+          height: 50,
+          borderRadius: 6,
+          backgroundColor: '#000208',
+          zIndex: 1,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}>
+        <View
+          style={{
+            padding: 7,
+          }}>
+          <View
+            style={{
+              backgroundColor: '#0000ff',
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+            }}></View>
+        </View>
+        <View style={{padding: 7, flexGrow: 1}}>
+          <Text style={{color: '#fff6'}}>Now playing</Text>
+          <Text style={{color: '#fff'}}>US State Capitals</Text>
+        </View>
+        <View style={{padding: 7}}>
+          <I.Play color={'#fff'} />
+        </View>
+      </View>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={backgroundStyle}>
         <Header />
         <View style={styles.container}>
-          <View>
+          <View style={styles.flexRow}>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={async () => {
@@ -237,6 +323,38 @@ const App = () => {
             </Section>
           ))}
 
+          {queue && (
+            <ScrollView
+              contentInsetAdjustmentBehavior="automatic"
+              style={[backgroundStyle, {height: 200}]}>
+              {queue.shuffled.map((item, i) => (
+                <View key={i}>
+                  <Text style={{color: '#fff'}}>{item.noteText}</Text>
+                  <Text key={i} style={{color: '#fff6'}}>
+                    {item.albumName}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {scheduledNotif?.length ? (
+            <ScrollView
+              contentInsetAdjustmentBehavior="automatic"
+              style={[backgroundStyle, {height: 200}]}>
+              {scheduledNotif.map((item, i) => (
+                <View key={i}>
+                  <Text style={{color: '#fff'}}>{item.message}</Text>
+                  <Text key={i} style={{color: '#fff6'}}>
+                    {item.title}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text>None expected</Text>
+          )}
+
           <TouchableOpacity
             style={styles.button}
             onPress={async () => {
@@ -322,7 +440,7 @@ const App = () => {
             style={styles.button}
             onPress={() => {
               notif.getScheduledLocalNotifications(notifs =>
-                console.log(notifs),
+                Reactotron.display({name: 'LOG', value: {notifs}}),
               );
             }}>
             <Text style={styles.buttonText}>
@@ -459,12 +577,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#F5F5F5',
   },
+  flexRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 });
 
 export default () => (
-  <PreferencesContextProvider>
-    <App />
-  </PreferencesContextProvider>
+  <QueryClientProvider client={queryClient}>
+    <QueueContextProvider>
+      <PreferencesContextProvider>
+        <App />
+      </PreferencesContextProvider>
+    </QueueContextProvider>
+  </QueryClientProvider>
 );
 
 function shuffleArray<T extends any[]>(array: T) {

@@ -1,4 +1,7 @@
-import PushNotification, {Importance} from 'react-native-push-notification';
+import PushNotification, {
+  Importance,
+  PushNotificationScheduledLocalObject,
+} from 'react-native-push-notification';
 import NotificationHandler from './NotificationHandler';
 
 type SoundName = any;
@@ -194,6 +197,21 @@ export default class NotifService {
     >[0],
   ) {
     PushNotification.getScheduledLocalNotifications(callback);
+  }
+
+  getScheduledLocalNotificationsAsync() {
+    return new Promise<PushNotificationScheduledLocalObject[]>(
+      (resolve, reject) => {
+        try {
+          PushNotification.getScheduledLocalNotifications(notifications => {
+            console.log(notifications);
+            resolve(notifications);
+          });
+        } catch (error) {
+          reject(error);
+        }
+      },
+    );
   }
 
   getDeliveredNotifications(
