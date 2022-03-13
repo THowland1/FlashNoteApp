@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^4",
     "@react-native-async-storage/async-storage": "^1.16.1",
     "@react-native-community/push-notification-ios": "^1.10.1",
     "@react-native-community/toolbar-android": "^0.2.1",
@@ -17,7 +18,9 @@
     "react-native": "0.67.3",
     "react-native-actionsheet": "^2.4.2",
     "react-native-feather": "^1.1.2",
+    "react-native-gesture-handler": "2.1.1",
     "react-native-push-notification": "^8.1.1",
+    "react-native-reanimated": "^2.4.1",
     "react-native-svg": "^12.3.0",
     "react-native-vector-icons": "^9.1.0",
     "react-query": "^3.34.16"
