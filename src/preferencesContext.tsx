@@ -5,12 +5,14 @@ type Preferences = {
   intervalInSeconds: number;
   shuffle: boolean;
   repeat: boolean;
+  paused: boolean;
 };
 
 const DEFAULT_PREFERENCES: Preferences = {
   intervalInSeconds: 60 * 5,
   shuffle: false,
   repeat: true,
+  paused: false,
 };
 
 const PREFERENCES_KEY = 'FlashNoteApp::Preferences';
